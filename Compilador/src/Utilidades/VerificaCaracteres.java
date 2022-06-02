@@ -1,6 +1,7 @@
 package Utilidades;
 
 import Modelo.Token;
+import Modelo.Parse;
 import Modelo.Simbolo;
 
 import java.util.Stack;
@@ -15,7 +16,6 @@ public class VerificaCaracteres {
 
 		for (int i = 0; i < file.length(); i++) {
 			char caracter = ' ';
-			char car = ' ';
 			Simbolo simbolo;
 
 			StringBuilder builder = new StringBuilder();
@@ -71,7 +71,7 @@ public class VerificaCaracteres {
 				int numeros = Integer.parseInt(builder.toString());
 
 				if (numeros > 32767 || numeros < -32767) {
-					throw new Exception("Valor numérico fora da faixa " + linha);
+					throw new Exception("Valor numérico fora da faixa na linha: " + linha);
 				}
 
 				simbolo = getSimbolo("INTEIRO");
@@ -97,7 +97,7 @@ public class VerificaCaracteres {
 							caracter = file.charAt(i + 1);
 						}
 					}
-					i += 2;
+					i += 1;
 				} else if (file.charAt(i) == '\'') {
 					// literais delimitados por apóstrofe
 					while (caracter != '\'') {
@@ -141,16 +141,99 @@ public class VerificaCaracteres {
 					}
 					pilha.add(pilha.size(), new Token(simbolo.getCodigo(), simbolo.getSimbolo(), builder.toString(), linha));
 				}
-			} else if (BarraN(car)) {
+			} else if (BarraN(file.charAt(i)) || BarraT(file.charAt(i))) {
 				linha++;
 			}
 		}
 		return pilha;
 	}
+	
+	public static void analiseSintatica(Stack<Simbolo> pilhaDerivacao, Stack<Token> pilhaLexica) throws Exception
+	{
+		pilhaDerivacao = alimentarPilha();
+		
+		while(!pilhaDerivacao.isEmpty())
+		{
+			Simbolo X = pilhaDerivacao.get(0); // top da pilha
+			Token a = pilhaLexica.get(0); // top da pilha
+			
+			if(Terminal(X))
+			{
+				if(X.getCodigo() == a.getCodigo())
+				{
+					pilhaDerivacao.remove(0);
+					pilhaLexica.remove(0);
+				}
+				else
+				{
+					throw new Exception("Simbolo: " + X.getSimbolo() + " esperado na linha " + a.getLinha());
+				}
+			}
+			else
+			{
+				Stack<Simbolo> derivacao = parser(X.getCodigo(), a.getCodigo());
+				
+				if(derivacao != null)
+				{
+					pilhaDerivacao.remove(0);
+					
+					while(!derivacao.isEmpty())
+					{
+						pilhaDerivacao.add(0, derivacao.pop());
+					}
+				}
+				else
+				{
+					throw new Exception("Simbolo: " + X.getSimbolo() + " esperado na linha " + a.getLinha());
+				}
+			}
+		}
+		
+	}
+	
+	public static Stack<Simbolo> alimentarPilha()
+	{
+		Stack<Simbolo> pilha = new Stack<Simbolo>();
+		
+		Simbolo simbolo = getSimbolo("PROGRAMA");
+		pilha.add(0, new Simbolo(simbolo.getCodigo(), simbolo.getSimbolo()));
+		
+		return pilha;
+	}
+	
+	public static Stack<Simbolo> parser(int X, int a)
+	{
+		Stack<Simbolo> derivacao = null;
+		
+		for(Parse p : Reservadas_tokens.TABELA_PARSE)
+		{
+			if(p.getX() == X && p.getA() == a)
+			{
+				if(p.getDerivacao() != null)
+				{
+					derivacao = new Stack<Simbolo>();
+					
+					if(!p.getDerivacao().equals(""))
+					{
+						String[] derivacoes = p.getDerivacao().split("\\|");
+						
+						for(String d : derivacoes)
+						{
+							Simbolo aux = getSimbolo(d);
+							derivacao.push(aux);
+						}
+					}
+					return derivacao;
+				}
+				break;
+			}
+		}
+		return derivacao;	
+	}
 
 	private static boolean Reservada(String setenca) {
 		for (String texto : Reservadas_tokens.RESERVADAS) {
-			if (setenca.equals(texto)) {
+			if (setenca.toUpperCase().equals(texto)) {
 				return true;
 			}
 		}
@@ -159,9 +242,17 @@ public class VerificaCaracteres {
 	}
 
 	private static Simbolo getSimbolo(String simbolo) {
-		for (Simbolo smb : Reservadas_tokens.SIMBOLOS_TERMINAIS) {
-			if (simbolo.equals(smb.getSimbolo())) {
-				return smb;
+		for (Simbolo s : Reservadas_tokens.SIMBOLOS_TERMINAIS) {
+			if (simbolo.toUpperCase().equals(s.getSimbolo())) {
+				return s;
+			}
+		}
+		
+		for (Simbolo s : Reservadas_tokens.SIMBOLOS_N_TERMINAIS)
+		{
+			if(simbolo.toUpperCase().equals(s.getSimbolo()))
+			{
+				return s;
 			}
 		}
 
@@ -186,4 +277,20 @@ public class VerificaCaracteres {
 	private static boolean BarraN(char car) {
 		return String.valueOf(car).equals("\n");
 	}
+	
+	private static boolean BarraT(char car){
+		return String.valueOf(car).equals("\t");
+	}
+	
+	public static boolean Terminal(Simbolo X)
+	{
+		for(Simbolo aux : Reservadas_tokens.SIMBOLOS_TERMINAIS)
+		{
+			if(X.getSimbolo().equals(aux.getSimbolo()))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
 }

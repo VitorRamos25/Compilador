@@ -4,25 +4,26 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
 import java.util.Stack;
 
 import javax.swing.BorderFactory;
-import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
-import javax.swing.border.Border;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.text.JTextComponent;
 
 import Componentes.Componentes;
+import Modelo.Simbolo;
 import Modelo.Token;
+import Utilidades.MLFile;
 import Utilidades.VerificaCaracteres;
 
 
@@ -45,9 +46,8 @@ public class Grafico extends JFrame{
 	private JButton botaoNovo;
 	private JButton botaoParar;
 	private JButton botaoDebugar;
+	private JButton botaoProximo;
 	
-	private JTextArea arqEditor;
-	private JTextArea arqConsole;
 	private JTextArea telaEditor;
 	private JTextArea textoConsole;
 	
@@ -61,6 +61,9 @@ public class Grafico extends JFrame{
 	private DefaultTableModel tabelaSintatica = new DefaultTableModel();
 	
 	private Stack<Token> pilhaLex = new Stack<Token>();
+	private Stack<Simbolo> pilhaSint = new Stack<Simbolo>();
+	
+	private String arquivoAtual = "";
 	
 	public Grafico() 
 	{
@@ -72,7 +75,7 @@ public class Grafico extends JFrame{
 		this.setResizable(false);
 		
 		iniciaComponentes();
-		
+		paraModoDebug();
 	}
 		
 	
@@ -106,6 +109,15 @@ public class Grafico extends JFrame{
 		botaoSalvar.setBounds(80, 5, 35, 35);
 		botaoSalvar.setFocusable(false);
 		botaoSalvar.setToolTipText("Salvar");
+		botaoSalvar.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				salvar();
+				
+			}
+		});
 		telaCima.add(botaoSalvar);
 		
 		ImageIcon iconeParar = new ImageIcon("src/InterfaceGrafica/Imagens/4stop.png");
@@ -114,6 +126,14 @@ public class Grafico extends JFrame{
 		botaoParar.setFocusable(false);
 		botaoParar.setToolTipText("Parar");
 		telaCima.add(botaoParar);
+		botaoParar.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				parar();			
+			}
+		});
 		
 		ImageIcon iconeDebug = new ImageIcon("src/InterfaceGrafica/Imagens/5bug.png");
 		botaoDebugar = new JButton(iconeDebug);
@@ -135,6 +155,26 @@ public class Grafico extends JFrame{
 			
 		});
 		telaCima.add(botaoDebugar);
+		
+		ImageIcon iconeProximo = new ImageIcon("src/InterfaceGrafica/Imagens/6next.png");
+		botaoProximo = new JButton(iconeProximo);
+		botaoProximo.setBounds(185, 5, 35, 35);
+		botaoProximo.setFocusable(false);
+		botaoProximo.setToolTipText("Próximo");
+		botaoProximo.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent a) {
+				// TODO Auto-generated method stub
+				try {
+					proximo();
+				} catch (Exception e) {
+					AdicionarConsole(e.getMessage());
+					parar();
+				}
+			}
+		});
+		telaCima.add(botaoProximo);
 		
 		telaTexto = new JPanel();
 		telaTexto.setBounds(2, 50, 625, 470);
@@ -212,11 +252,13 @@ public class Grafico extends JFrame{
 		
 		}
 
-	
-	private void setarDebugOff()
+	private void modoDebug()
+	{
+		botaoDebugar.setEnabled(false);
+	}
+	private void paraModoDebug()
 	{
 		botaoDebugar.setEnabled(true);
-		telaEditor.setEditable(true);
 	}
 	
 	public String pegarTextoArea()
@@ -240,9 +282,17 @@ public class Grafico extends JFrame{
 		textoConsole.setText(Texto);
 	}
 	
+	
 	private void debugar() throws Throwable
 	{
 		String conteudo = pegarTextoArea();
+		
+		if(conteudo.trim().equals(""))
+		{
+			return;
+		}
+		
+		modoDebug();
 				
 		try
 		{
@@ -255,6 +305,16 @@ public class Grafico extends JFrame{
 			{
 				tabelaLexia.addRow(new Object[] {t.getCodigo(), t.getValor()});
 			}
+			
+			AdicionarConsole("Inicia análise Sintática...");
+			pilhaSint = VerificaCaracteres.alimentarPilha();
+			
+			tabelaSintatica.setNumRows(0);
+			for(Simbolo s : pilhaSint)
+			{
+				tabelaSintatica.addRow(new Object[] {s.getCodigo(), s.getSimbolo()});
+			}
+			
 		}
 		catch(Exception e)
 		{
@@ -264,26 +324,110 @@ public class Grafico extends JFrame{
 		
 	}
 	
+	private void proximo() throws Exception
+	{
+		if(!pilhaSint.isEmpty())
+		{
+			Simbolo X = pilhaSint.get(0); // top da pilha
+			Token a = pilhaLex.get(0); // top da pilha
+			
+			if(VerificaCaracteres.Terminal(X))
+			{
+				if(X.getCodigo() == a.getCodigo())
+				{
+					pilhaSint.remove(0);
+					pilhaLex.remove(0);
+				}
+				else
+				{
+					throw new Exception("Simbolo: " + X.getSimbolo() + "esperado na linha " + a.getLinha());
+				}
+			}
+			else
+			{
+				Stack<Simbolo> derivacao = VerificaCaracteres.parser(X.getCodigo(), a.getCodigo());
+				
+				if(derivacao != null)
+				{
+					pilhaSint.remove(0);
+					
+					while(!derivacao.isEmpty())
+					{
+						pilhaSint.add(0, derivacao.pop());
+					}
+				}
+				else
+				{
+					throw new Exception("Simbolo: " + X.getSimbolo() + "esperado na linha " + a.getLinha());
+				}
+			}
+			
+		}
+		
+		if(pilhaSint.isEmpty())
+		{
+			
+			JOptionPane.showMessageDialog(null, "Análise sintática finalizada.");
+			AdicionarConsole("Análise sintática concluida com sucesso!!");
+			parar();
+		}
+		else
+		{
+			tabelaLexia.setNumRows(0);
+			for(Token t : pilhaLex)
+			{
+				tabelaLexia.addRow(new Object[] {t.getCodigo(), t.getValor()});
+			}
+			
+			tabelaSintatica.setNumRows(0);
+			for(Simbolo s : pilhaSint)
+			{
+				tabelaSintatica.addRow(new Object[] {s.getCodigo(), s.getSimbolo()});
+			}
+			
+			
+		}
+		
+	}
+	
+	private void salvar()
+	{
+		if(arquivoAtual.equals(""))
+		{
+			JFileChooser fc = new JFileChooser(System.getProperty("user.dir"));
+			fc.showSaveDialog(null);
+			
+			 	File selFile = fc.getSelectedFile();
+	            if (selFile != null) 
+	            {
+	            	arquivoAtual = selFile.getAbsolutePath();
+	            }
+		}
+		
+		if (!arquivoAtual.equals(""))
+		{
+			MLFile.gravarArquivo(arquivoAtual, pegarTexto());
+		}			
+	}
+	
 	private void parar()
 	{
-		setarDebugOff();
+		paraModoDebug();
 		
 		pilhaLex = null;
 		pilhaLex = new Stack<Token>();
 		tabelaLexia.setNumRows(0);
 		
+		pilhaSint = null;
+		pilhaSint = new Stack<Simbolo>();
+		tabelaSintatica.setNumRows(0);
+		
 	}
 	
 	private void AdicionarConsole(String Texto)
 	{
-		if(textoConsole.getText().trim().equals(""))
-		{
-			textoConsole.setText(Texto);
-		}
-		else
-		{
 			textoConsole.setText(textoConsole.getText() + "\n" + Texto);
-		}
+		
 	}
 
 }

@@ -251,7 +251,9 @@ public class Componentes extends JPanel implements CaretListener, DocumentListen
 		// Determine the rows to draw within the clipped bounds.
 
 		Rectangle clip = g.getClipBounds();
+		@SuppressWarnings("deprecation")
 		int rowStartOffset = component.viewToModel(new Point(0, clip.y));
+		@SuppressWarnings("deprecation")
 		int endOffset = component.viewToModel(new Point(0, clip.y + clip.height));
 
 		while (rowStartOffset <= endOffset) {
@@ -321,6 +323,7 @@ public class Componentes extends JPanel implements CaretListener, DocumentListen
 	private int getOffsetY(int rowStartOffset, FontMetrics fontMetrics) throws BadLocationException {
 		// Get the bounding rectangle of the row
 
+		@SuppressWarnings("deprecation")
 		Rectangle r = component.modelToView(rowStartOffset);
 		int lineHeight = fontMetrics.getHeight();
 		int y = r.y + r.height;
@@ -413,6 +416,7 @@ public class Componentes extends JPanel implements CaretListener, DocumentListen
 			public void run() {
 				try {
 					int endPos = component.getDocument().getLength();
+					@SuppressWarnings("deprecation")
 					Rectangle rect = component.modelToView(endPos);
 
 					if (rect != null && rect.y != lastHeight) {
