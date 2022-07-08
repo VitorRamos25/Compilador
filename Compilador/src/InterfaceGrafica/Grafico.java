@@ -5,6 +5,7 @@ import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.util.Queue;
 import java.util.Stack;
 
 import javax.swing.BorderFactory;
@@ -24,6 +25,7 @@ import Componentes.Componentes;
 import Modelo.Simbolo;
 import Modelo.Token;
 import Utilidades.MLFile;
+import Utilidades.Semantico;
 import Utilidades.VerificaCaracteres;
 
 
@@ -47,9 +49,10 @@ public class Grafico extends JFrame{
 	private JButton botaoParar;
 	private JButton botaoDebugar;
 	private JButton botaoProximo;
+	private JButton botaoCompilar;
 	
 	private JTextArea telaEditor;
-	private JTextArea textoConsole;
+	private static JTextArea textoConsole;
 	
 	private JTable telaLexica;
 	private JTable telaSintatica;
@@ -62,6 +65,7 @@ public class Grafico extends JFrame{
 	
 	private Stack<Token> pilhaLex = new Stack<Token>();
 	private Stack<Simbolo> pilhaSint = new Stack<Simbolo>();
+	private Stack<Token> pilhaLexSemant = new Stack<Token>();
 	
 	private String arquivoAtual = "";
 	
@@ -175,6 +179,27 @@ public class Grafico extends JFrame{
 			}
 		});
 		telaCima.add(botaoProximo);
+		
+		ImageIcon iconeCompilar = new ImageIcon("src/InterfaceGrafica/Imagens/play7.png");
+		botaoCompilar = new JButton(iconeCompilar);
+		botaoCompilar.setBounds(220, 5, 35, 35);
+		botaoCompilar.setFocusable(false);
+		botaoCompilar.setToolTipText("Compilar");
+		botaoCompilar.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent a) {
+				// TODO Auto-generated method stub
+					try {
+						compilar();
+					} catch (Throwable e) {
+						// TODO Auto-generated catch block
+						AdicionarConsole(e.getMessage());
+						parar();
+					}
+				}
+		});
+		telaCima.add(botaoCompilar);
 		
 		telaTexto = new JPanel();
 		telaTexto.setBounds(2, 50, 625, 470);
@@ -410,6 +435,42 @@ public class Grafico extends JFrame{
 		}			
 	}
 	
+	private void compilar() throws Throwable
+	{
+		String conteudo = pegarTextoArea();
+		
+		
+		
+		if(conteudo.trim().equals(""))
+		{
+			return;
+		}
+		
+		modoDebug();
+				
+		try
+		{
+			AdicionarConsole("Inicia análise Lexica...");
+			pilhaLex = VerificaCaracteres.analiseLexica(conteudo);
+			AdicionarConsole("Fim análise Lexica com sucesso.");
+			
+			AdicionarConsole("Inicia análise Semantica...");
+			Semantico.validar(pilhaLex);
+			AdicionarConsole("Analise Semantica finalizada com sucesso...");
+			
+			AdicionarConsole("Inicia análise Sintática...");
+			VerificaCaracteres.analiseSintatica(pilhaSint, pilhaLex);
+			AdicionarConsole("Analise sintática finalizada com sucesso...");
+			
+			JOptionPane.showMessageDialog(null, "Análise concluida com sucesso!!");
+		  
+		}
+		catch(Exception e)
+		{
+			AdicionarConsole(e.getMessage());
+		}
+	}
+	
 	private void parar()
 	{
 		paraModoDebug();
@@ -424,7 +485,7 @@ public class Grafico extends JFrame{
 		
 	}
 	
-	private void AdicionarConsole(String Texto)
+	public static void AdicionarConsole(String Texto)
 	{
 			textoConsole.setText(textoConsole.getText() + "\n" + Texto);
 		

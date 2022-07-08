@@ -14,7 +14,7 @@ public class VerificaCaracteres {
 
 		int linha = 1;
 
-		for (int i = 0; i < file.length(); i++) {
+		for (int i = 0; i < file.trim().length(); i++) {
 			char caracter = ' ';
 			Simbolo simbolo;
 
@@ -141,8 +141,9 @@ public class VerificaCaracteres {
 					}
 					pilha.add(pilha.size(), new Token(simbolo.getCodigo(), simbolo.getSimbolo(), builder.toString(), linha));
 				}
-			} else if (BarraN(file.charAt(i)) || BarraT(file.charAt(i))) {
-				linha++;
+			} else if (BarraN(file.charAt(i))) {
+				
+					linha++;
 			}
 		}
 		return pilha;
